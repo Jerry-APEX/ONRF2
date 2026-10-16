@@ -9,3 +9,7 @@ __pycache__/
 node_modules/
 test-results/
 backups/
+*.key
+*.sqlite3
+*.sqlite3-*
+private-data/

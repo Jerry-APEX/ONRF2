@@ -1,37 +1,37 @@
 # One Nation Reggae Festival Vol.2
 
-English, mobile-first ticket verification portal for **customer testing only**.
+English ticket verification portal for mobile phones, tablets and desktop gate operations, with isolated **test** and **production** modes.
 
 Existing Render service: <https://onrf2-online-ticket-test.onrender.com>
 
-**Release status (16 October 2026):** version 2.1.0, application revision `030803cee19e`, is deployed over public HTTPS in TEST MODE. The deployed health check currently reports SQLite, so scan history is still disposable until `DATABASE_URL` is configured. The existing private Render test PostgreSQL instance is available in Frankfurt and expires on 14 November 2026. Add its Internal Database URL in the web service's Environment settings; do not post that credential in GitHub or chat. Existing administrator and staff passwords have not been changed.
+**Version 3.0.0:** the production-capable release uses the latest 13,000-ticket factory workbook and the festival website's Anton/Inter typography, gold/charcoal identity and non-animal palm artwork. The scanning workspace stays light and readable outdoors. Desktop camera and result panels sit side by side; tablet and phone layouts use a single column.
 
-The version 2.1.0 update adds a default collection of 20 alphanumeric test samples while retaining the original eight samples, their routes and mappings. Startup preserves check-in history in the configured database. Public health, assets, anonymous access restrictions and browser loading have been verified; authenticated public entry and physical phone-camera testing remain separate acceptance steps.
+**Activation:** `/health` is the authoritative deployed mode and storage check. Production cannot start without persistent PostgreSQL and the authenticated, pinned registry. Until the owner connects the formal database and its backups, the public service remains in test mode. The existing free test database expires on 14 November 2026. Existing login credentials are preserved; do not post connection URLs or passwords in GitHub or chat.
 
 ## Experience
 
 - **SCAN TICKET:** live rear-camera preview, continuous local QR recognition, manual token fallback, gate selection and prominent entry results. Sound and optional vibration respect browser support.
-- **TEST QR CODES:** 20 authenticated, printable alphanumeric sample cards by default, with a collection selector for the eight original cards. Both collections support server-side **SIMULATE SCAN** for testing with one phone.
-- **ADMIN PANEL:** 24 unique test tickets, check-in counts, rejected scans, latest 100 activity records, test backup export and confirmed test reset.
-- Cream, burgundy, festival red, green and golden yellow styling; geometric patterns and text-based festival branding. No animal illustrations. All assets, fonts and QR decoding code are served by this application.
+- **TEST QR CODES:** available only in test mode, with 20 alphanumeric sample cards and the eight original cards. Both collections support **SIMULATE SCAN** for testing with one phone.
+- **ADMIN PANEL:** official ticket totals in production, 24 unique sample tickets in test mode, recent scan records and administrator-only backup export. Reset is available only in test mode.
+- Reference identity: <https://onenationreggaefestival.com/>. Anton headings, Inter body text, charcoal masthead, festival gold buttons, cream workspace and a compact text wordmark. No animal illustrations. Fonts, imagery and QR decoding are self-hosted.
 
 ## Data and security boundaries
 
-This application is locked to **TEST MODE**. Setting `APP_MODE` to anything other than `test` prevents startup. There is no production import or activation endpoint.
+`APP_MODE` accepts only `test` or `production`, and defaults to `test`. Production requires `DATABASE_URL`, an authenticated encrypted registry and its independently pinned catalog hash. There is no public registry import or remote backup-restore endpoint. Production hides testing controls and rejects every sample image, simulation and reset route.
 
 The eight original sample QR payloads, serial numbers, types and initial statuses are preserved exactly. Samples 2 and 8 share one token and one admission. Sample 7 is intentionally unknown, so the original eight cards represent **six database tickets**.
 
-The separate 20-card collection is defined in the server-side `test_samples_20.json` fixture. Its tokens contain exactly 32 ASCII letters and digits. There are 19 distinct payloads and 18 issued tickets: 16 initially unused, one initially used and one cancelled. Sample 7 is invalid and is never inserted as a ticket; Sample 8 shares Sample 2's admission. The new `TEST20-` serial namespace is separate from the original samples and production registry. No 13,000-ticket production mappings are loaded or activated by this application.
+The separate 20-card collection is defined in the server-side `test_samples_20.json` fixture. Its tokens contain exactly 32 ASCII letters and digits. There are 19 distinct payloads and 18 issued tickets: 16 initially unused, one initially used and one cancelled. Sample 7 is invalid and is never inserted as a ticket; Sample 8 shares Sample 2's admission. The new `TEST20-` namespace is separate from the original samples and production registry. Test mode never decrypts or imports the production registry; production never seeds test tickets.
 
 The original `/api/samples` and `/api/sample/1` through `/api/sample/8` routes retain their behavior; sample 9 still returns 404. The new collection uses `/api/collections/alphanumeric-20/samples`, `/api/collections/alphanumeric-20/sample/<number>` and its `/scan` POST endpoint. All sample routes require a signed-in role, and simulation requires the session CSRF header. Public page HTML, browser JavaScript, sample-list metadata and backup exports do not contain raw test tokens.
 
-Only `onrf2_test_*` database tables are created, changed or reset. An existing SQLite demo's known test entries can be copied into these tables once, without changing its original tables. Credentials remain in server environment variables. Browser scripts contain no built-in QR tokens or staff passwords; authenticated sample QR images necessarily encode their public test tokens.
+Modes use separate `onrf2_test_*` and `onrf2_production_*` tables and locks. A mode change invalidates the previous session. The test-only legacy migration preserves known demo history without changing original tables. Credentials and the production decryption key stay in server environment variables. Browser code contains no ticket secrets; authenticated test images encode only public sample tokens.
 
 The server uses a conditional `UPDATE … WHERE status='unused' RETURNING …` in the same transaction as its audit insert. PostgreSQL row locks or SQLite `BEGIN IMMEDIATE` arbitrate concurrent requests. One request wins; duplicates read the first entry's timestamp, gate and operator. A failed audit insert rolls the check-in back. No client or offline state can grant admission.
 
-The new letters-and-numbers factory printing format is a **39-character unpadded Base32 alias of the same original 24 bytes**, whose canonical representation is the existing 32-character Base64URL token. `qr_encoding.canonical_token()` recognizes only valid canonical aliases and restores that original token before verification hashes it. The original token, database hash and admission state are unchanged; both formats therefore share one atomic check-in. A future, separately approved production importer must apply `canonical_token()` before hashing. Never register the two formats as separate tickets or hash the 39-character representation directly. This compatibility does not activate any production ticket; an unregistered token in either format is rejected.
+The factory printing format is a **39-character unpadded Base32 alias of the same original 24 bytes**, whose canonical representation is the existing 32-character Base64URL token. `qr_encoding.canonical_token()` restores the original representation before hashing, so new and old printed formats share one admission. The encrypted production registry contains only canonical hashes, serials, ticket types, access areas and print order. All 13,000 mappings were compared to `ONRF2_FACTORY_ALPHANUMERIC_13000.xlsx`; its SHA256 is `f6c5492e2efc31dac1a8b09704d69a4ae5cecfc938b231553d11e64267ace8c1`. Startup authenticates the registry, validates all serial ranges/counts and preserves existing entry history. See [production deployment](docs/production-deployment.md).
 
-Role-based sessions, secure/HttpOnly/SameSite cookies, CSRF checks, same-origin writes, database-backed login throttling, restrictive content security headers and authenticated QR endpoints protect the portal. Existing `admin` and `staff` accounts and environment-variable names are retained. Those shared role accounts identify the role in activity records; individual named operator accounts remain a prerequisite for a live festival.
+Role-based sessions, secure/HttpOnly/SameSite cookies, CSRF checks, same-origin writes, database-backed login throttling, restrictive content security headers and authenticated test QR endpoints protect the portal. Existing `admin` and `staff` accounts and environment-variable names are retained; the account used for check-in is preserved as the original operator.
 
 ## Render configuration
 
@@ -43,15 +43,17 @@ Update the **existing** ONRF2 Python web service, rather than creating another w
 | Build command | `pip install -r requirements.txt` |
 | Start command | `gunicorn app:app` |
 | Health check | `/health` |
-| App mode | `APP_MODE=test` |
+| App mode | `APP_MODE=test` by default; `production` after database and backup readiness |
 | Session signing secret | `SESSION_SECRET`, at least 32 characters; preserve the current value |
 | Administrator password | `ADMIN_PASSWORD`, at least 12 characters; preserve the current value |
 | Staff password | `STAFF_PASSWORD`, at least 12 characters; preserve the current value |
 | Persistent storage | `DATABASE_URL`, internal Render PostgreSQL connection URL in the same workspace and region |
+| Encrypted production registry | `PRODUCTION_CATALOG_KEY`, privately configured; no default |
+| Production catalog pin | `EXPECTED_PRODUCTION_CATALOG_SHA256`, independently verified registry hash |
 
 `gunicorn.conf.py` binds to `0.0.0.0:$PORT` and uses two processes with four threads each. An existing start command can override those settings. No frontend build step is required.
 
-When `DATABASE_URL` is set, PostgreSQL is used exclusively; connection failure never silently falls back to SQLite. Schema creation and test-only seeding run safely at startup and never reset previously used tickets.
+When `DATABASE_URL` is set, PostgreSQL is used exclusively; connection failure never falls back to SQLite. Schema creation, test seeding and authenticated production imports use the selected mode's transaction and never reset previously used tickets. Production always requires PostgreSQL, including when `LOCAL_DEVELOPMENT` is set.
 
 Without `DATABASE_URL`, `DB_PATH` defaults to `/tmp/onrf2_test.sqlite`. This fallback is convenient for local work but **is ephemeral on a free Render web service**. It does not satisfy durable hosting. Use a dedicated test PostgreSQL instance for customer testing. Free Render PostgreSQL instances expire and do not provide the production backup policy needed for a festival; check the actual instance's expiry in Render. Do not activate production ticket codes on free, expiring infrastructure.
 
@@ -80,9 +82,9 @@ Camera images are decoded locally using native `BarcodeDetector` where available
 
 ## Backups and live-readiness
 
-Administrators can download a consistent **EXPORT TEST BACKUP** JSON snapshot containing the 24 hashed test mappings and audit records, without raw QR payloads or passwords. Store that file outside the Render service. For PostgreSQL disaster recovery, also use native database backups/exports and verify a restore on a separate database; a browser export is not an automated backup schedule.
+Administrators can download **EXPORT CHECK-IN BACKUP** in production or **EXPORT TEST BACKUP** in test mode. Each is a consistent snapshot of that mode's hashed ticket mappings and audit records, without raw QR values or passwords. The offline [backup/restore CLI](docs/backup-restore.md) previews restoration and refuses to overwrite differing existing history. Store backups outside the service and test restoration into an empty PostgreSQL database; a browser export does not configure managed backups.
 
-Before the live festival: provision non-expiring persistent PostgreSQL, configure and restore-test managed backups, introduce individual operator accounts, validate permissions and availability, conduct physical phone and network tests, and build a separately approved production migration. This testing application never activates production mappings.
+Before switching live, connect non-expiring PostgreSQL with managed backups and an always-on web instance. Verify `/health` reports `production` and `postgresql`, and that the administrator summary matches 13,000 tickets and the pinned catalog/source hashes. Complete physical iPhone Safari and Android Chrome checks with dedicated acceptance fixtures. The code and private catalog are prepared; provider credentials and hosting plans must be configured separately.
 
 ## Automated verification
 

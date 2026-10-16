@@ -3,6 +3,7 @@
   const $ = (id) => document.getElementById(id);
   let csrf = "",
     user = null,
+    appMode = document.body.dataset.mode || "test",
     activeTab = "scan",
     verifying = false;
   let cardsLoaded = "",
@@ -13,6 +14,8 @@
     MAIN: "MAIN TICKET",
     "VIP CREATIVITY": "VIP CREATIVITY LOUNGE",
     "VIP CULTURE": "VIP CULTURE LOUNGE",
+    VIP_CREATIVITY: "VIP CREATIVITY LOUNGE",
+    VIP_CULTURE: "VIP CULTURE LOUNGE",
     INVALID: "INVALID QR CODE",
     "MAIN STUB": "MAIN TICKET STUB",
   };
@@ -163,6 +166,7 @@
 
   function signedIn(data) {
     csrf = data.csrf;
+    appMode = data.mode || document.body.dataset.mode || "test";
     user = { role: data.role, username: data.username };
     $("password").value = "";
     $("loginMessage").textContent = "";
@@ -171,6 +175,8 @@
     $("userTools").hidden = false;
     $("roleLabel").textContent = data.role.toUpperCase();
     $("adminTab").hidden = data.role !== "admin";
+    $("samplesTab").hidden = appMode === "production";
+    $("resetData").hidden = appMode === "production";
     tab(
       ["samples", "admin"].includes(location.hash.slice(1))
         ? location.hash.slice(1)
@@ -218,6 +224,7 @@
     if (!user) return;
     if (
       !["scan", "samples", "admin"].includes(name) ||
+      (appMode === "production" && name === "samples") ||
       (name === "admin" && user.role !== "admin")
     )
       name = "scan";
@@ -342,7 +349,7 @@
       "PLEASE WAIT",
       "busy",
     );
-    if (window.matchMedia("(max-width:700px)").matches)
+    if (window.matchMedia("(max-width:1023px)").matches)
       $("resultColumn").scrollIntoView({ block: "start", behavior: "instant" });
     try {
       if (!navigator.onLine)
@@ -363,6 +370,7 @@
   }
 
   async function loadSamples() {
+    if (appMode === "production") return;
     const collection = $("sampleCollection").value;
     if (cardsLoaded === collection) return;
     cardsLoaded = "";
@@ -460,12 +468,14 @@
         ["statUnused", "unused"],
         ["statRejected", "rejected"],
       ]) {
-        $(id).textContent = data.stats[key];
+        $(id).textContent = Number(data.stats[key]).toLocaleString("en-GB");
       }
-      $("ticketCatalogCounts").textContent =
-        data.stats.total + " unique tickets · " + data.catalog.samples + " QR samples";
-      $("initiallyUsedCount").textContent =
-        "Includes " + data.catalog.initially_used + " initially used samples";
+      $("ticketCatalogCounts").textContent = appMode === "production"
+        ? "Official ticket register · All gates"
+        : data.stats.total + " unique tickets · " + data.catalog.samples + " QR samples";
+      $("initiallyUsedCount").textContent = appMode === "production"
+        ? "Live entries across every gate"
+        : "Includes " + data.catalog.initially_used + " initially used samples";
       $("recordsUpdated").textContent =
         "Updated " + time(data.updated_at, true) + " GMT · Latest 100 scans";
       $("activityBody").replaceChildren();
@@ -562,7 +572,7 @@
   });
   $("startCamera").onclick = () => {
     unlockAudio();
-    if (window.matchMedia("(max-width:700px)").matches)
+    if (window.matchMedia("(max-width:1023px)").matches)
       $("scannerCard").scrollIntoView({ block: "start" });
     camera.start();
   };
@@ -587,7 +597,9 @@
   $("sampleCollection").onchange = loadSamples;
   $("signout").onclick = signout;
   $("adminSignout").onclick = signout;
-  $("resetData").onclick = () => $("resetDialog").showModal();
+  $("resetData").onclick = () => {
+    if (appMode === "test") $("resetDialog").showModal();
+  };
   $("resetForm").addEventListener("submit", (event) => {
     if (event.submitter?.value === "reset") {
       event.preventDefault();
@@ -595,6 +607,7 @@
     }
   });
   $("printSamples").onclick = async () => {
+    if (appMode === "production") return;
     await Promise.all(
       [...document.querySelectorAll(".sample-qr")].map((image) =>
         image.decode().catch(() => {}),

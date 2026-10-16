@@ -2,6 +2,33 @@
 
 Prepared 16 October 2026 for the ONRF2 customer-testing redesign.
 
+## Version 3.0.0 design and production capability
+
+The portal follows the owner's reference at <https://onenationreggaefestival.com/>:
+self-hosted Anton/Inter, charcoal masthead, festival gold controls and the site's
+non-animal palm artwork. The scanning workspace remains cream and white. At
+1366 by 768 pixels the gate selector, camera controls and result card are visible
+in the first viewport. At 768 pixels the workspace becomes a single column.
+
+| Check | Result |
+| --- | --- |
+| Layout and browser behavior | Login, scanner, samples and administrator views passed at 320, 375, 390, 430, 768, 1024, 1280, 1440 and 1920 pixels, without horizontal page overflow or JavaScript errors |
+| Desktop camera/result split | Approximately 58:42; gate, START/STOP and result visible at 1366 by 768 |
+| Recognition and test workflows | All 28 original/new image payloads and sequential sample outcomes passed; camera recognition implementation unchanged |
+| Result contrast | Success 5.89:1 and rejection 9.18:1 for white text against the result backgrounds |
+| Server and recovery regression suite | 68 tests passed, including production mode, SQLite refusal, catalog integrity, isolated PostgreSQL concurrency and verified empty-target recovery |
+| Latest official ticket registry | All 13,000 rows matched the latest alphanumeric Excel and canonical hashes; 1,000 WHITE, 11,000 MAIN and 500 of each VIP type |
+| Private deployment data | Only authenticated encrypted catalog ciphertext committed; no raw production QR values, workbook, private key or plaintext database |
+| Full registry database drill | Isolated PostgreSQL import, idempotent startup, backup and restored catalog all matched; no real attendee ticket was checked in |
+| Data loss protection | Missing installed tickets, metadata or retained audit history cause startup to fail closed, rather than recreating tickets as unused |
+| Production cookies | HTTPS-only even if the local development flag is accidentally enabled |
+
+Formal activation still requires a configured, durable PostgreSQL connection,
+managed backups and an always-on hosting plan. The application defaults to test
+mode and refuses production SQLite. Preparing and locally validating the release
+does not by itself enable real admissions. Actual phone-camera checks and
+authenticated public gate checks are separate from these local checks.
+
 ## Version 2.1.0 public release
 
 Render deployment `dep-db8s247f3r2c73f7cfv0` reached `live` on 16 October 2026. It runs application commit `030803cee19e60ff66c50872509961fdb762ecbc`, whose [GitHub Actions checks passed](https://github.com/Jerry-APEX/ONRF2/actions/runs/38860150216). The configured automatic deploy did not pick up the update; deployment was triggered with a cleared build cache.

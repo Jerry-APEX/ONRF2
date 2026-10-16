@@ -15,11 +15,11 @@ def test_original_eight_payload_mappings_are_unchanged(module):
     assert hashlib.sha256(encoded).hexdigest() == '77dc0468b3f2c6c33af8407a1870edab3783aab3e3baee7501baf67a5beb14bb'
 
 
-def test_production_mode_cannot_be_activated(module):
-    environment = dict(os.environ, APP_MODE='production')
+def test_production_mode_requires_persistent_postgresql(module):
+    environment = dict(os.environ, APP_MODE='production', DATABASE_URL='')
     result = subprocess.run([sys.executable, '-c', 'import app'], env=environment, capture_output=True, text=True)
     assert result.returncode != 0
-    assert 'supports TEST MODE only' in result.stderr
+    assert 'Production requires persistent PostgreSQL' in result.stderr
 
 
 def test_known_legacy_entries_migrate_without_editing_the_original_table(module):

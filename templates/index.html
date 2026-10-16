@@ -1,3 +1,4 @@
+{% set live = app_mode == 'production' %}
 <!doctype html>
 <html lang="en">
   <head>
@@ -9,7 +10,7 @@
     <meta name="theme-color" content="#F6F0E6" />
     <meta
       name="description"
-      content="One Nation Reggae Festival Vol.2 — secure staff ticket verification and customer testing portal."
+      content="Official One Nation Reggae Festival Vol.2 ticket verification portal."
     />
     <title>ONRF2 · Ticket Verification Portal</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
@@ -18,7 +19,7 @@
     <script defer src="/static/scanner.js"></script>
     <script defer src="/static/app.js"></script>
   </head>
-  <body>
+  <body data-mode="{{ app_mode|default('test') }}">
     <a class="skip-link" href="#main">Skip to content</a>
     <div class="festival-stripe" aria-hidden="true"></div>
     <header class="site-header">
@@ -33,15 +34,16 @@
           >
           <span class="brand-sub">REGGAE FESTIVAL</span>
         </a>
-        <span class="header-caption">Ticket Verification Portal</span>
+        <span class="header-caption">OFFICIAL CHECK-IN<br /><strong>Ticket Verification Portal</strong></span>
         <div class="header-tools">
-          <span class="badge test-badge"
-            ><span class="status-dot"></span>TEST MODE</span
+          <a class="masthead-link" href="https://onenationreggaefestival.com/" target="_blank" rel="noopener noreferrer">EVENT WEBSITE <span aria-hidden="true">↗︎</span></a>
+          <span class="badge {{ 'live-badge' if live else 'test-badge' }}" id="modeBadge"
+            ><span class="status-dot"></span>{{ 'LIVE CHECK-IN' if live else 'TEST MODE' }}</span
           >
           <div class="user-tools" id="userTools" hidden>
             <span class="role-pill" id="roleLabel">STAFF</span>
             <button class="text-button signout" id="signout" type="button">
-              Sign Out <span aria-hidden="true">↗</span>
+              Sign Out <span aria-hidden="true">↗︎</span>
             </button>
           </div>
         </div>
@@ -52,12 +54,11 @@
       <section id="loginPage" class="login-layout" aria-labelledby="loginTitle">
         <div class="login-story">
           <p class="eyebrow">
-            <span class="little-line"></span> ONE FESTIVAL. ONE COMMUNITY.
+            <span class="little-line"></span> ONE NATION REGGAE FESTIVAL VOL.2
           </p>
-          <h1>Good vibes.<br /><span>Great beginnings.</span></h1>
+          <h1>ONE PEOPLE.<br />ONE CULTURE.<br /><span>ONE VIBE.</span></h1>
           <p class="story-copy">
-            Every unforgettable night starts at the gate.<br />Let’s welcome the
-            rhythm, one ticket at a time.
+            Welcome to the festival.<br />Every unforgettable experience starts at the gate.
           </p>
           <div class="brand-pattern" aria-hidden="true"></div>
           <div class="story-bottom">
@@ -75,8 +76,8 @@
               <rect x="5" y="10" width="14" height="11" rx="2" />
               <path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3" /></svg
           ></span>
-          <p class="eyebrow">AUTHORIZED PERSONNEL</p>
-          <h2 id="loginTitle">Welcome to the gate.</h2>
+          <p class="eyebrow">STAFF &amp; ADMINISTRATOR ACCESS</p>
+          <h2 id="loginTitle">WELCOME TO THE GATE.</h2>
           <p class="muted">Sign in to your staff or administrator account.</p>
           <form id="loginForm">
             <label for="username">USERNAME</label>
@@ -117,7 +118,7 @@
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="m12 3 8 4v5c0 5-8 9-8 9s-8-4-8-9V7z" />
               <path d="m8 12 3 3 5-5" /></svg
-            >Secure access · Test tickets only
+            >Secure access · {{ 'Official festival check-in' if live else 'Test tickets only' }}
           </p>
         </div>
       </section>
@@ -131,7 +132,7 @@
               /></svg
             ><span>SCAN TICKET</span>
           </button>
-          <button class="nav-button" data-tab="samples">
+          <button class="nav-button" data-tab="samples" id="samplesTab" {% if live %}hidden{% endif %}>
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path
                 d="M4 4h6v6H4zm10 0h6v6h-6zM4 14h6v6H4zm10 0h2v2h-2zm4 4h2v2h-2zm0-4h2m-6 6h2"
@@ -146,7 +147,7 @@
             ><span>ADMIN PANEL</span>
           </button>
           <span class="nav-caption"
-            ><span class="status-dot"></span> CUSTOMER TESTING</span
+            ><span class="status-dot"></span> {{ 'OFFICIAL EVENT OPERATIONS' if live else 'CUSTOMER TESTING' }}</span
           >
         </nav>
 
@@ -157,13 +158,14 @@
               <h1 id="scanTitle">Ticket Verification</h1>
               <p>Scan a ticket QR code to validate entry.</p>
             </div>
-            <div class="heading-note">
-              <span class="mini-ticket" aria-hidden="true">02</span
-              ><span
-                >One ticket.<br /><strong
-                  >One unforgettable night.</strong
-                ></span
-              >
+            <div class="gate-selector">
+              <label for="gate">CHECK-IN GATE</label>
+              <select id="gate" aria-label="Check-in gate">
+                <option>MAIN GATE</option>
+                <option>GATE A</option>
+                <option>GATE B</option>
+                <option>VIP GATE</option>
+              </select>
             </div>
           </div>
           <div class="scan-layout">
@@ -222,17 +224,11 @@
                 Use the rear camera. Keep the ticket steady and avoid glare.
               </p>
               <div class="manual-heading">
-                <label for="gate">CHECK-IN GATE</label
+                <label for="ticketCode">TICKET CODE</label
                 ><button class="text-button" id="manualEntry" type="button">
-                  MANUAL ENTRY <span aria-hidden="true">↗</span>
+                  MANUAL ENTRY <span aria-hidden="true">↗︎</span>
                 </button>
               </div>
-              <select id="gate" aria-label="Check-in gate">
-                <option>MAIN GATE</option>
-                <option>GATE A</option>
-                <option>GATE B</option>
-                <option>VIP GATE</option>
-              </select>
               <form id="scanForm" class="scan-form">
                 <label for="ticketCode" class="visually-hidden"
                   >Ticket QR code</label
@@ -325,11 +321,11 @@
               </div>
             </aside>
           </div>
-          <div class="test-notice">
-            <span class="badge small-test">TEST</span>
+          <div class="test-notice mode-notice {{ 'live-notice' if live else '' }}">
+            <span class="badge small-test">{{ 'LIVE' if live else 'TEST' }}</span>
             <p>
-              You’re in a separate testing environment. Production festival
-              tickets are not active.
+              {% if live %}Official festival check-in. All gates share one entry record for each ticket.
+              {% else %}You’re in a separate testing environment. Production festival tickets are not active.{% endif %}
             </p>
           </div>
         </section>
@@ -357,7 +353,7 @@
               resets test data.
             </p>
             <button class="text-button" id="printSamples" type="button">
-              PRINT QR SHEET <span aria-hidden="true">↗</span>
+              PRINT QR SHEET <span aria-hidden="true">↗︎</span>
             </button>
           </div>
           <div id="sampleCards" class="sample-grid" aria-live="polite"></div>
@@ -368,19 +364,19 @@
             <div>
               <p class="eyebrow">BEHIND THE GOOD VIBES</p>
               <h1 id="adminTitle">Check-in Management</h1>
-              <p>A clear view of every test ticket and every entry.</p>
+              <p>{{ 'A clear view of festival tickets and every entry.' if live else 'A clear view of every test ticket and every entry.' }}</p>
             </div>
             <span class="badge outline-badge">ADMINISTRATOR ACCESS</span>
           </div>
           <div class="stats-grid">
             <div class="stat-card">
-              <span>Total Test Tickets</span><strong id="statTotal">—</strong
-              ><small id="ticketCatalogCounts">Test tickets across both collections</small>
+              <span>{{ 'Total Festival Tickets' if live else 'Total Test Tickets' }}</span><strong id="statTotal">—</strong
+              ><small id="ticketCatalogCounts">{{ 'Official ticket register' if live else 'Test tickets across both collections' }}</small>
             </div>
             <div class="stat-card green">
               <span>Successfully Checked In</span
               ><strong id="statChecked">—</strong
-              ><small id="initiallyUsedCount">Includes initially used samples</small>
+              ><small id="initiallyUsedCount">{{ 'Live entries across every gate' if live else 'Includes initially used samples' }}</small>
             </div>
             <div class="stat-card gold">
               <span>Unused Tickets</span><strong id="statUnused">—</strong
@@ -428,7 +424,7 @@
                 <tbody id="activityBody">
                   <tr>
                     <td colspan="6" class="empty-table">
-                      Loading test activity…
+                      Loading {{ 'check-in' if live else 'test' }} activity…
                     </td>
                   </tr>
                 </tbody>
@@ -437,19 +433,20 @@
           </div>
           <div class="admin-controls">
             <div>
-              <h2>Test environment controls</h2>
+              <h2>{{ 'Event check-in records' if live else 'Test environment controls' }}</h2>
               <p class="muted">
-                Reset sample tickets for another test run, or download a backup
-                of test records.
+                {% if live %}Download a copy of ticket statuses and entry records for the event team.
+                {% else %}Reset sample tickets for another test run, or download a backup of test records.{% endif %}
               </p>
             </div>
             <div class="control-buttons">
               <a class="button secondary" href="/api/backup" download
-                >EXPORT TEST BACKUP</a
+                >{{ 'EXPORT CHECK-IN BACKUP' if live else 'EXPORT TEST BACKUP' }}</a
               ><button
                 class="button danger-outline"
                 id="resetData"
                 type="button"
+                {% if live %}hidden{% endif %}
               >
                 RESET TEST DATA</button
               ><button
@@ -457,7 +454,7 @@
                 id="adminSignout"
                 type="button"
               >
-                SIGN OUT <span aria-hidden="true">↗</span>
+                SIGN OUT <span aria-hidden="true">↗︎</span>
               </button>
             </div>
           </div>
@@ -466,13 +463,13 @@
 
       <footer class="site-footer">
         <div class="footer-brand">
-          ONE NATION<span>ONE LOVE. ONE RHYTHM.</span>
+          ONE NATION<span>ONE PEOPLE. ONE CULTURE. ONE VIBE.</span>
         </div>
         <p>
           REGGAE FESTIVAL VOL.2 <span aria-hidden="true">·</span> TICKET
           VERIFICATION PORTAL
         </p>
-        <span class="footer-mode">CUSTOMER TESTING ONLY</span>
+        <span class="footer-mode">{{ 'OFFICIAL EVENT OPERATIONS' if live else 'CUSTOMER TESTING ONLY' }}</span>
       </footer>
     </main>
 
