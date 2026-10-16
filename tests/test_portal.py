@@ -39,7 +39,7 @@ def test_known_legacy_entries_migrate_without_editing_the_original_table(module)
         assert row['status'] == 'used' and row['first_user'] == 'original-staff'
         assert db.execute('SELECT COUNT(*) AS n FROM tickets').fetchone()['n'] == 2
         assert db.execute(f'SELECT COUNT(*) AS n FROM {module.SCANS}').fetchone()['n'] == 1
-        assert db.execute(f'SELECT COUNT(*) AS n FROM {module.TICKETS}').fetchone()['n'] == 6
+        assert db.execute(f'SELECT COUNT(*) AS n FROM {module.TICKETS}').fetchone()['n'] == 24
 
 
 def test_reset_never_touches_legacy_or_production_tables(module):
@@ -92,7 +92,7 @@ def test_all_eight_samples_and_stats(module):
     assert results[7]['ticket'] == results[1]['ticket']
     assert results[4]['ticket']['first_time'] == '2026-10-15T17:00:00+00:00'
     summary = client.get('/api/summary').json
-    assert summary['stats'] == {'total':6,'checked_in':5,'unused':0,'rejected':4}
+    assert summary['stats'] == {'total':24,'checked_in':6,'unused':16,'rejected':4}
     assert len(summary['logs']) == 8
     assert all('kind' in log and 'operator' in log for log in summary['logs'])
 
@@ -137,10 +137,11 @@ def test_reset_requires_confirmation_and_backup_excludes_raw_tokens(module):
     assert data.status_code == 200
     backup = json.loads(data.data)
     assert backup['mode'] == 'test'
-    assert len(backup['tickets']) == 6 and len(backup['scans']) == 1
+    assert len(backup['tickets']) == 24 and len(backup['scans']) == 1
     assert all(sample[1].encode() not in data.data for sample in module.SAMPLES)
+    assert all(sample['token'].encode() not in data.data for sample in module.TEST20_SAMPLES)
     assert client.post('/api/reset', headers=headers, json={'confirmation':'RESET TEST DATA'}).status_code == 200
-    assert client.get('/api/summary').json['stats'] == {'total':6,'checked_in':1,'unused':4,'rejected':0}
+    assert client.get('/api/summary').json['stats'] == {'total':24,'checked_in':2,'unused':20,'rejected':0}
 
 
 def test_restart_does_not_reset_entries(module):

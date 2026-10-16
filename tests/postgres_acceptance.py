@@ -18,6 +18,7 @@ os.environ.update(DATABASE_URL=pg.get_uri(), APP_MODE='test', LOCAL_DEVELOPMENT=
                   ADMIN_PASSWORD=secrets.token_urlsafe(24), STAFF_PASSWORD=secrets.token_urlsafe(24))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import app as portal
+from qr_encoding import print_token
 
 
 def client(role='admin'):
@@ -34,7 +35,9 @@ try:
     def scan(number):
         browser, headers = client('admin' if number % 2 else 'staff')
         barrier.wait(timeout=20)
-        response = browser.post('/api/sample/2/scan', json={'gate':portal.GATES[number % 4]}, headers=headers)
+        token = portal.SAMPLES[1][1]
+        response = browser.post('/api/scan', json={'code':print_token(token) if number % 2 else token,
+                                                 'gate':portal.GATES[number % 4]}, headers=headers)
         assert response.status_code == 200
         return response.json
     with ThreadPoolExecutor(max_workers=count) as pool:
@@ -47,7 +50,7 @@ try:
     repeated = browser.post('/api/sample/8/scan', headers=headers, json={}).json
     assert repeated['result'] == 'ALREADY SCANNED' and repeated['ticket'] == granted[0]['ticket']
     backup = browser.get('/api/backup').json
-    assert len(backup['tickets']) == 6 and len(backup['scans']) == 17
+    assert len(backup['tickets']) == 24 and len(backup['scans']) == 17
     assert browser.get('/api/summary').json['stats']['rejected'] == 16
     assert browser.post('/api/reset', headers=headers, json={'confirmation':'RESET TEST DATA'}).status_code == 200
     outcomes = []
@@ -56,7 +59,11 @@ try:
         assert response.status_code == 200
         outcomes.append(response.json['result'])
     assert outcomes == ['ACCESS GRANTED'] * 4 + ['ALREADY SCANNED','ACCESS DENIED','ACCESS DENIED','ALREADY SCANNED']
-    print('PostgreSQL 16: 16 simultaneous requests, exactly one grant; first-entry metadata preserved.')
-    print('PostgreSQL 16: restart, backup snapshot, admin summary, reset and all eight samples passed.')
+    for sample in portal.TEST20_SAMPLES:
+        response = browser.post(f"/api/collections/alphanumeric-20/sample/{sample['number']}/scan", headers=headers, json={})
+        assert response.status_code == 200 and response.json['result'] == sample['sequential_result']
+    assert browser.get('/api/summary').json['stats'] == {'total':24,'checked_in':22,'unused':0,'rejected':8}
+    print('PostgreSQL 16: 16 simultaneous requests across original/printed formats, exactly one grant; first-entry metadata preserved.')
+    print('PostgreSQL 16: restart, backup snapshot, admin summary, reset and all 28 samples passed.')
 finally:
     pg.cleanup()

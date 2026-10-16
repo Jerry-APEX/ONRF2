@@ -341,8 +341,13 @@
               <h1 id="samplesTitle">Ticket Testing Center</h1>
               <p>Use these sample codes to verify the check-in system.</p>
             </div>
-            <span class="badge outline-badge">8 SAMPLES · 6 TEST TICKETS</span>
+            <span class="badge outline-badge" id="sampleCounts">TEST SAMPLES</span>
           </div>
+          <label class="field-label" for="sampleCollection">TEST SAMPLE COLLECTION</label>
+          <select id="sampleCollection" name="sampleCollection">
+            <option value="alphanumeric-20">20 ALPHANUMERIC TEST SAMPLES</option>
+            <option value="original">8 ORIGINAL TEST SAMPLES</option>
+          </select>
           <div class="sample-intro">
             <span class="note-icon" aria-hidden="true">i</span>
             <p>
@@ -370,12 +375,12 @@
           <div class="stats-grid">
             <div class="stat-card">
               <span>Total Test Tickets</span><strong id="statTotal">—</strong
-              ><small>6 unique tickets · 8 QR samples</small>
+              ><small id="ticketCatalogCounts">Test tickets across both collections</small>
             </div>
             <div class="stat-card green">
               <span>Successfully Checked In</span
               ><strong id="statChecked">—</strong
-              ><small>Includes 1 initially used sample</small>
+              ><small id="initiallyUsedCount">Includes initially used samples</small>
             </div>
             <div class="stat-card gold">
               <span>Unused Tickets</span><strong id="statUnused">—</strong
@@ -476,7 +481,7 @@
         <span class="icon-tile" aria-hidden="true">↻</span>
         <h2 id="resetTitle">Start a fresh test run?</h2>
         <p>
-          This restores all six test tickets to their initial statuses and
+          This restores test tickets in both collections to their initial statuses and
           clears test scan records. Production ticket data is not connected.
         </p>
         <p class="muted">

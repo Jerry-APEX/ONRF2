@@ -2,7 +2,29 @@
 
 Prepared 16 October 2026 for the ONRF2 customer-testing redesign.
 
-## Verified in the development environment
+## Version 2.1.0 update verified locally
+
+The update adds 20 alphanumeric test sample cards as the default collection and retains the eight original cards and their existing routes. Twenty new cards represent 18 issued tickets and 19 unique payloads: Sample 7 is intentionally invalid, and Sample 8 shares Sample 2's admission. Together, both collections have 24 issued tickets and 28 cards. Startup adds mappings without replacing existing check-in states or scan history. No production mappings are imported or activated.
+
+| Check | Result |
+| --- | --- |
+| Server regression suite | 22 tests passed, including the original sample fingerprint, TEST MODE startup guard, new collection permissions, sequential outcomes, legacy history, reset and restart |
+| SQLite mixed-format simultaneous entry | 12 original/printed-format requests: exactly 1 grant; every duplicate returned identical first-entry metadata |
+| PostgreSQL 16 mixed-format simultaneous entry | 16 original/printed-format requests: exactly 1 grant; every duplicate returned identical first-entry metadata |
+| PostgreSQL restart, export, summary, reset and both collections | All 28 sequential sample outcomes passed on an isolated local database |
+| Actual application QR image decoding | Chromium jsQR decoded all 20 new and 8 original authenticated PNG responses to their exact fixture payloads |
+| Scanner regression suite | 3 tests passed; recognition logic unchanged |
+| Browser interaction | Both collections, all 28 simulations, dynamic counts, confirmed reset, sign out and no JavaScript errors |
+| Delayed collection responses | Rapid collection switching retains the selected collection; a stale response cannot replace its cards |
+| Responsive layout | No horizontal page overflow at 320, 375, 390, 430, 768 and 1440 px |
+
+Sample 7 in the new collection uses QR mask 0, selected through independent reader checks without changing its payload. Other new samples use the QR generator's normal mask selection. Authentication remains required for the image endpoints.
+
+The new 39-character printing format is unpadded Base32 for the same 24 bytes as an existing 32-character Base64URL token. Verification calls `canonical_token()` before hashing, so both representations share the same database key and admission. A future approved production import must normalize first and hash the original token; it must never register two tickets or directly hash the 39-character representation. Unknown tokens are rejected in both formats. The compatibility layer grants no production access.
+
+These are local software checks. Public deployment, persistent storage and physical mobile-camera acceptance must be verified independently; historical public checks below describe the prior release.
+
+## Verified version 2.0.0 baseline
 
 | Check | Result |
 | --- | --- |

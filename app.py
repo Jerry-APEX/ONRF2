@@ -5,6 +5,7 @@ import hmac
 import io
 import json
 import os
+import re
 import sqlite3
 import time
 from datetime import datetime, timezone
@@ -13,6 +14,8 @@ from pathlib import Path
 import qrcode
 from flask import Flask, jsonify, render_template, request, send_file, session
 from werkzeug.middleware.proxy_fix import ProxyFix
+
+from qr_encoding import canonical_token
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
@@ -45,6 +48,59 @@ SAMPLES = [
     ("TEST-INVALID-001", "TEST-INVALID-QR-001-REJECT", "INVALID", "invalid"),
     ("TEST-M-00001 STUB", "gMCHnRctQhsNllxdpRXlexj_Duwnnt7D", "MAIN STUB", "same-as-02"),
 ]
+
+
+def load_test20_samples(path=None):
+    """Load public test fixtures only; malformed mappings prevent startup."""
+    source = Path(path) if path else Path(__file__).with_name("test_samples_20.json")
+    document = json.loads(source.read_text(encoding="utf-8"))
+    samples = document.get("samples", [])
+    if document.get("mode") != "test" or document.get("schema_version") != 1 or len(samples) != 20:
+        raise RuntimeError("Invalid test sample collection")
+    hashes = {hashlib.sha256(sample[1].encode()).hexdigest() for sample in SAMPLES}
+    issued = {}
+    for number, sample in enumerate(samples, 1):
+        token = sample.get("token", "")
+        if (sample.get("number") != number or not isinstance(token, str)
+                or not re.fullmatch(r"[A-Za-z0-9]{32}", token)
+                or not str(sample.get("serial", "")).startswith("TEST20-")
+                or not isinstance(sample.get("title"), str)
+                or sample.get("state") not in ("unused", "used", "cancelled", "invalid", "same-as-02")):
+            raise RuntimeError("Invalid test sample mapping")
+        digest = hashlib.sha256(token.encode()).hexdigest()
+        if sample["state"] == "same-as-02":
+            original = samples[1]
+            if (number != 8 or sample.get("duplicate_of") != 2 or token != original["token"]
+                    or sample.get("ticket_serial") != original["ticket_serial"]):
+                raise RuntimeError("Invalid test stub mapping")
+            continue
+        if digest in hashes:
+            raise RuntimeError("Conflicting test sample mapping")
+        hashes.add(digest)
+        if sample["state"] == "invalid":
+            if sample.get("ticket_serial") is not None:
+                raise RuntimeError("Invalid samples cannot issue tickets")
+        else:
+            serial = sample.get("ticket_serial")
+            if serial != sample["serial"] or serial in issued or sample.get("duplicate_of") is not None:
+                raise RuntimeError("Conflicting test ticket serial")
+            issued[serial] = sample
+    if len(issued) != 18 or len(hashes) != len({sample[1] for sample in SAMPLES}) + 19:
+        raise RuntimeError("Unexpected test sample totals")
+    return samples
+
+
+TEST20_SAMPLES = load_test20_samples()
+TEST20_TICKETS = [
+    (sample["ticket_serial"], sample["token"], sample["kind"], sample["state"])
+    for sample in TEST20_SAMPLES if sample["state"] in ("unused", "used", "cancelled")
+]
+# Sample 7 uses a mask verified with multiple independent QR readers.
+TEST20_QR_MASKS = {7: 0}
+ORIGINAL_TITLES = {
+    "WHITE": "White Ticket", "MAIN": "Main Ticket", "VIP CREATIVITY": "VIP Creativity Lounge",
+    "VIP CULTURE": "VIP Culture Lounge", "INVALID": "Invalid QR Code", "MAIN STUB": "Main Ticket Stub",
+}
 GATES = ("MAIN GATE", "GATE A", "GATE B", "VIP GATE")
 TICKETS = "onrf2_test_tickets"
 SCANS = "onrf2_test_scans"
@@ -100,7 +156,7 @@ def connect():
 
 
 def seed_data(db):
-    for serial, token, kind, status in SAMPLES[:6]:
+    for serial, token, kind, status in [*SAMPLES[:6], *TEST20_TICKETS]:
         used = status == "used"
         db.execute(
             f"INSERT INTO {TICKETS} "
@@ -109,6 +165,9 @@ def seed_data(db):
             (serial, hashed(token), kind, status, "2026-10-15T17:00:00+00:00" if used else None,
              "GATE A" if used else None, "DEMO STAFF" if used else None),
         )
+        existing = db.execute(f"SELECT code_hash,kind FROM {TICKETS} WHERE serial=?", (serial,)).fetchone()
+        if not existing or existing["code_hash"] != hashed(token) or existing["kind"] != kind:
+            raise RuntimeError("Conflicting test ticket mapping; existing records were preserved")
 
 
 def migrate_legacy_test_data(db):
@@ -213,7 +272,7 @@ def health():
     try:
         with connect() as db:
             db.execute(f"SELECT serial FROM {TICKETS} LIMIT 1")
-        return jsonify(status="ok", demo=True, mode="test", version="2.0.0",
+        return jsonify(status="ok", demo=True, mode="test", version="2.1.0",
                        storage="postgresql" if DATABASE_URL else "sqlite",
                        revision=os.environ.get("RENDER_GIT_COMMIT", "local")[:12])
     except Exception:
@@ -274,11 +333,13 @@ def verify_token(token, gate):
         return error("Enter a ticket code of up to 256 characters.")
     if gate not in GATES:
         return error("Choose a check-in gate.")
-    digest = hashed(token.strip())
+    digest = hashed(canonical_token(token.strip()))
     stamp = utc()
     try:
         with connect() as db:
             db.begin_write()
+            if DATABASE_URL:
+                db.execute("SELECT pg_advisory_xact_lock_shared(7420902)")
             # The conditional UPDATE is the arbiter, never a client-side pre-check.
             # PostgreSQL rechecks the condition after a concurrent row lock;
             # SQLite serializes writers with BEGIN IMMEDIATE.
@@ -297,8 +358,12 @@ def verify_token(token, gate):
                 ).fetchone()
                 if row and row["status"] == "used":
                     result, reason = "ALREADY SCANNED", "ALREADY USED"
+                elif row and row["status"] == "cancelled":
+                    result, reason = "ACCESS DENIED", "CANCELLED"
+                elif row:
+                    raise RuntimeError("Unexpected ticket state after conditional check-in")
                 else:
-                    result, reason = "ACCESS DENIED", "CANCELLED" if row else "INVALID TICKET"
+                    result, reason = "ACCESS DENIED", "INVALID TICKET"
             db.execute(f"INSERT INTO {SCANS} (time,serial,outcome,gate,operator) VALUES (?,?,?,?,?)",
                        (stamp, row["serial"] if row else None, result, gate, session["username"]))
             ticket = dict(row) if row else None
@@ -322,8 +387,9 @@ def samples():
     denied = user_required()
     if denied:
         return denied
-    return jsonify(ok=True, samples=[
-        {"i":i + 1, "serial":serial, "kind":kind, "state":state, "qr":f"/api/sample/{i + 1}"}
+    return jsonify(ok=True, collection="original", ticket_count=len(SAMPLES[:6]), samples=[
+        {"i":i + 1, "serial":serial, "kind":kind, "state":state, "title":ORIGINAL_TITLES[kind],
+         "qr":f"/api/sample/{i + 1}", "scan":f"/api/sample/{i + 1}/scan"}
         for i, (serial, _, kind, state) in enumerate(SAMPLES)
     ])
 
@@ -335,8 +401,13 @@ def sample_qr(number):
         return denied
     if not 1 <= number <= len(SAMPLES):
         return error("Sample not found.", 404)
-    qr = qrcode.QRCode(box_size=10, border=4, error_correction=qrcode.constants.ERROR_CORRECT_M)
-    qr.add_data(SAMPLES[number - 1][1])
+    return qr_image(SAMPLES[number - 1][1])
+
+
+def qr_image(token, mask_pattern=None):
+    qr = qrcode.QRCode(box_size=10, border=4, error_correction=qrcode.constants.ERROR_CORRECT_M,
+                       mask_pattern=mask_pattern)
+    qr.add_data(token)
     qr.make(fit=True)
     buffer = io.BytesIO()
     qr.make_image(fill_color="black", back_color="white").save(buffer, format="PNG")
@@ -354,6 +425,40 @@ def simulate(number):
     return verify_token(SAMPLES[number - 1][1], payload().get("gate", "MAIN GATE"))
 
 
+@app.get("/api/collections/alphanumeric-20/samples")
+def test20_samples():
+    denied = user_required()
+    if denied:
+        return denied
+    return jsonify(ok=True, collection="alphanumeric-20", ticket_count=len(TEST20_TICKETS), samples=[
+        {"i":sample["number"], "serial":sample["serial"], "kind":sample["kind"],
+         "state":sample["state"], "title":sample["title"],
+         "qr":f"/api/collections/alphanumeric-20/sample/{sample['number']}",
+         "scan":f"/api/collections/alphanumeric-20/sample/{sample['number']}/scan"}
+        for sample in TEST20_SAMPLES
+    ])
+
+
+@app.get("/api/collections/alphanumeric-20/sample/<int:number>")
+def test20_qr(number):
+    denied = user_required()
+    if denied:
+        return denied
+    if not 1 <= number <= len(TEST20_SAMPLES):
+        return error("Sample not found.", 404)
+    return qr_image(TEST20_SAMPLES[number - 1]["token"], TEST20_QR_MASKS.get(number))
+
+
+@app.post("/api/collections/alphanumeric-20/sample/<int:number>/scan")
+def test20_simulate(number):
+    denied = user_required(write=True)
+    if denied:
+        return denied
+    if not 1 <= number <= len(TEST20_SAMPLES):
+        return error("Sample not found.", 404)
+    return verify_token(TEST20_SAMPLES[number - 1]["token"], payload().get("gate", "MAIN GATE"))
+
+
 @app.get("/api/summary")
 def summary():
     denied = user_required(admin=True)
@@ -367,6 +472,8 @@ def summary():
     return jsonify(ok=True, tickets=[dict(row) for row in tickets], logs=[dict(row) for row in logs],
                    stats={"total":len(tickets), "checked_in":sum(t["status"] == "used" for t in tickets),
                           "unused":sum(t["status"] == "unused" for t in tickets), "rejected":rejected},
+                   catalog={"samples":len(SAMPLES) + len(TEST20_SAMPLES),
+                            "initially_used":sum(t[3] == "used" for t in [*SAMPLES[:6], *TEST20_TICKETS])},
                    storage="postgresql" if DATABASE_URL else "sqlite", updated_at=utc())
 
 
@@ -380,6 +487,7 @@ def reset():
     with connect() as db:
         db.begin_write()
         if DATABASE_URL:
+            db.execute("SELECT pg_advisory_xact_lock(7420902)")
             db.execute(f"LOCK TABLE {TICKETS}, {SCANS} IN EXCLUSIVE MODE")
         db.execute(f"DELETE FROM {SCANS}")
         db.execute(f"DELETE FROM {TICKETS}")

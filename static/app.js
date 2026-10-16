@@ -5,7 +5,8 @@
     user = null,
     activeTab = "scan",
     verifying = false;
-  let cardsLoaded = false,
+  let cardsLoaded = "",
+    sampleRequest = 0,
     audio = null;
   const kindNames = {
     WHITE: "WHITE TICKET",
@@ -15,16 +16,6 @@
     INVALID: "INVALID QR CODE",
     "MAIN STUB": "MAIN TICKET STUB",
   };
-  const sampleTitles = [
-    "White Ticket",
-    "Main Ticket",
-    "VIP Creativity Lounge",
-    "VIP Culture Lounge",
-    "Main Ticket",
-    "White Ticket",
-    "Invalid QR Code",
-    "Main Ticket Stub",
-  ];
   const initialStatuses = {
     unused: "INITIALLY VALID",
     used: "INITIALLY USED",
@@ -191,7 +182,9 @@
     camera.stop();
     csrf = "";
     user = null;
-    cardsLoaded = false;
+    cardsLoaded = "";
+    ++sampleRequest;
+    $("sampleCollection").value = "alphanumeric-20";
     $("sampleCards").replaceChildren();
     $("activityBody").replaceChildren();
     $("portal").hidden = true;
@@ -370,11 +363,21 @@
   }
 
   async function loadSamples() {
-    if (cardsLoaded) return;
+    const collection = $("sampleCollection").value;
+    if (cardsLoaded === collection) return;
+    cardsLoaded = "";
+    const requestNumber = ++sampleRequest;
     $("sampleCards").textContent = "Loading test samples…";
+    $("printSamples").disabled = true;
     try {
-      const data = await api("/api/samples");
-      if (!user) return;
+      const data = await api(
+        collection === "original"
+          ? "/api/samples"
+          : "/api/collections/alphanumeric-20/samples",
+      );
+      if (!user || requestNumber !== sampleRequest || $("sampleCollection").value !== collection) return;
+      $("sampleCounts").textContent =
+        data.samples.length + " SAMPLES · " + data.ticket_count + " TEST TICKETS";
       $("sampleCards").replaceChildren();
       data.samples.forEach((sample) => {
         const card = document.createElement("article");
@@ -395,7 +398,7 @@
         number.textContent =
           "SAMPLE " + String(sample.i).padStart(2, "0") + " / ONRF VOL.2";
         const title = document.createElement("h2");
-        title.textContent = sampleTitles[sample.i - 1];
+        title.textContent = sample.title;
         const edition = document.createElement("p");
         edition.textContent = "ONE NATION REGGAE FESTIVAL";
         top.append(number, title, edition);
@@ -414,7 +417,7 @@
         image.src = sample.qr;
         image.alt =
           "Scannable test QR for " +
-          sampleTitles[sample.i - 1] +
+          sample.title +
           ", " +
           sample.serial;
         image.width = 250;
@@ -429,15 +432,18 @@
         button.onclick = () => {
           unlockAudio();
           tab("scan");
-          verify({}, "/api/sample/" + sample.i + "/scan");
+          verify({}, sample.scan);
         };
         content.append(status, image, serial, button);
         card.append(top, content);
         $("sampleCards").append(card);
       });
-      cardsLoaded = true;
+      cardsLoaded = collection;
     } catch (error) {
-      $("sampleCards").textContent = error.message;
+      if (requestNumber === sampleRequest)
+        $("sampleCards").textContent = error.message;
+    } finally {
+      if (requestNumber === sampleRequest) $("printSamples").disabled = false;
     }
   }
 
@@ -456,6 +462,10 @@
       ]) {
         $(id).textContent = data.stats[key];
       }
+      $("ticketCatalogCounts").textContent =
+        data.stats.total + " unique tickets · " + data.catalog.samples + " QR samples";
+      $("initiallyUsedCount").textContent =
+        "Includes " + data.catalog.initially_used + " initially used samples";
       $("recordsUpdated").textContent =
         "Updated " + time(data.updated_at, true) + " GMT · Latest 100 scans";
       $("activityBody").replaceChildren();
@@ -574,6 +584,7 @@
     }
   };
   $("refreshRecords").onclick = loadRecords;
+  $("sampleCollection").onchange = loadSamples;
   $("signout").onclick = signout;
   $("adminSignout").onclick = signout;
   $("resetData").onclick = () => $("resetDialog").showModal();
