@@ -2,6 +2,21 @@
 
 Prepared 16 October 2026 for the ONRF2 customer-testing redesign.
 
+## Version 2.1.0 public release
+
+Render deployment `dep-db8s247f3r2c73f7cfv0` reached `live` on 16 October 2026. It runs application commit `030803cee19e60ff66c50872509961fdb762ecbc`, whose [GitHub Actions checks passed](https://github.com/Jerry-APEX/ONRF2/actions/runs/38860150216). The configured automatic deploy did not pick up the update; deployment was triggered with a cleared build cache.
+
+| Public check | Result |
+| --- | --- |
+| HTTPS health | HTTP 200, version `2.1.0`, revision `030803cee19e`, TEST MODE, storage `sqlite` |
+| New sample collection and QR images | Anonymous requests return HTTP 401; the fixture JSON file is not served |
+| Application, scanner and CSS | HTTP 200 and byte-for-byte hashes match the committed release |
+| Browser loading | Secure context, English login, new 20-sample and original 8-sample options, no JavaScript errors |
+| Mobile and desktop login layout | No overflow at 390 and 1440 pixels |
+| Security headers | Same-origin camera policy, CSP, HTTPS strict transport and no-store caching present |
+
+Existing live passwords were not retrieved or rotated. Authenticated verification was exercised locally as recorded below; public authenticated entry, actual mobile cameras and persistent database wiring remain outstanding. No production tickets were imported or activated. The service still reports disposable SQLite.
+
 ## Version 2.1.0 update verified locally
 
 The update adds 20 alphanumeric test sample cards as the default collection and retains the eight original cards and their existing routes. Twenty new cards represent 18 issued tickets and 19 unique payloads: Sample 7 is intentionally invalid, and Sample 8 shares Sample 2's admission. Together, both collections have 24 issued tickets and 28 cards. Startup adds mappings without replacing existing check-in states or scan history. No production mappings are imported or activated.
@@ -22,7 +37,7 @@ Sample 7 in the new collection uses QR mask 0, selected through independent read
 
 The new 39-character printing format is unpadded Base32 for the same 24 bytes as an existing 32-character Base64URL token. Verification calls `canonical_token()` before hashing, so both representations share the same database key and admission. A future approved production import must normalize first and hash the original token; it must never register two tickets or directly hash the 39-character representation. Unknown tokens are rejected in both formats. The compatibility layer grants no production access.
 
-These are local software checks. Public deployment, persistent storage and physical mobile-camera acceptance must be verified independently; historical public checks below describe the prior release.
+These are local software checks. Public transport and access checks are recorded separately above. Persistent storage, authenticated public entry and physical mobile-camera acceptance must be verified independently; historical public checks below describe the prior release.
 
 ## Verified version 2.0.0 baseline
 

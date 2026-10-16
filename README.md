@@ -4,9 +4,9 @@ English, mobile-first ticket verification portal for **customer testing only**.
 
 Existing Render service: <https://onrf2-online-ticket-test.onrender.com>
 
-**Release status (16 October 2026):** version 2.0.0 is deployed over public HTTPS in TEST MODE. The deployed health check currently reports SQLite, so scan history is still disposable until `DATABASE_URL` is configured. The existing private Render test PostgreSQL instance is available in Frankfurt and expires on 14 November 2026. Add its Internal Database URL in the web service's Environment settings; do not post that credential in GitHub or chat. Existing administrator and staff passwords have not been changed.
+**Release status (16 October 2026):** version 2.1.0, application revision `030803cee19e`, is deployed over public HTTPS in TEST MODE. The deployed health check currently reports SQLite, so scan history is still disposable until `DATABASE_URL` is configured. The existing private Render test PostgreSQL instance is available in Frankfurt and expires on 14 November 2026. Add its Internal Database URL in the web service's Environment settings; do not post that credential in GitHub or chat. Existing administrator and staff passwords have not been changed.
 
-The version 2.1.0 update adds a default collection of 20 alphanumeric test samples while retaining the original eight samples, their routes, mappings and check-in history. Deployment of this update must be verified separately from the historical release above.
+The version 2.1.0 update adds a default collection of 20 alphanumeric test samples while retaining the original eight samples, their routes and mappings. Startup preserves check-in history in the configured database. Public health, assets, anonymous access restrictions and browser loading have been verified; authenticated public entry and physical phone-camera testing remain separate acceptance steps.
 
 ## Experience
 
