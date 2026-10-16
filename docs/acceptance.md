@@ -4,6 +4,17 @@ Prepared 16 October 2026 for the ONRF2 customer-testing redesign.
 
 ## Version 3.0.0 design and production capability
 
+Public deployment `dep-db8t257avr4c73c8gl80` reached `live` for application commit
+`e633ee1e13d579d86600de63aa12104c84af1f99`. Its
+[GitHub checks passed](https://github.com/Jerry-APEX/ONRF2/actions/runs/38866785171).
+Public HTTPS reports version `3.0.0`, mode `test` and storage `sqlite`.
+Application/CSS/scanner, Anton/Inter files and the palm artwork match the committed
+release byte for byte. Public desktop and mobile browsers loaded the new design
+without script errors or horizontal overflow; the catalog file and server modules
+are not served. Anonymous protected endpoints continue to require sign-in.
+Formal activation is pending the owner's persistent database connection and hosting
+configuration; no production ticket was activated on the public test service.
+
 The portal follows the owner's reference at <https://onenationreggaefestival.com/>:
 self-hosted Anton/Inter, charcoal masthead, festival gold controls and the site's
 non-animal palm artwork. The scanning workspace remains cream and white. At
