@@ -144,7 +144,7 @@ def test_production_cross_format_concurrency_and_restart_preserve_first_entry(pr
         barrier.wait(timeout=20)
         response = browser.post('/api/scan', headers=headers,
                                 json={'code':tokens[0] if index % 2 else print_token(tokens[0]),
-                                      'gate':portal.GATES[index % 4]})
+                                      'gate':portal.GATES[index % len(portal.GATES)]})
         assert response.status_code == 200
         return response.json
     with ThreadPoolExecutor(max_workers=count) as pool:
@@ -156,7 +156,7 @@ def test_production_cross_format_concurrency_and_restart_preserve_first_entry(pr
     portal.init_db()
     portal.init_db()
     browser, headers = login(portal)
-    repeat = browser.post('/api/scan', headers=headers, json={'code':print_token(tokens[0]),'gate':'VIP GATE'}).json
+    repeat = browser.post('/api/scan', headers=headers, json={'code':print_token(tokens[0]),'gate':'CC GATE'}).json
     assert repeat['ticket'] == granted[0]['ticket']
     backup = browser.get('/api/backup').json
     assert backup['mode'] == 'production' and len(backup['tickets']) == 4 and len(backup['scans']) == count + 1
@@ -211,7 +211,7 @@ def test_production_postgresql_cross_format_race_uses_one_admission(production, 
             barrier.wait(timeout=20)
             response = browser.post('/api/scan', headers=headers,
                                     json={'code':tokens[1] if index % 2 else print_token(tokens[1]),
-                                          'gate':portal.GATES[index % 4]})
+                                          'gate':portal.GATES[index % len(portal.GATES)]})
             assert response.status_code == 200
             return response.json
         with ThreadPoolExecutor(max_workers=count) as pool:

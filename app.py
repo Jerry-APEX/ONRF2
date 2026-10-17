@@ -111,10 +111,11 @@ TEST20_TICKETS = [
 # Sample 7 uses a mask verified with multiple independent QR readers.
 TEST20_QR_MASKS = {7: 0}
 ORIGINAL_TITLES = {
-    "WHITE": "White Ticket", "MAIN": "Main Ticket", "VIP CREATIVITY": "VIP Creativity Lounge",
-    "VIP CULTURE": "VIP Culture Lounge", "INVALID": "Invalid QR Code", "MAIN STUB": "Main Ticket Stub",
+    "WHITE": "White Ticket", "MAIN": "Main Ticket", "VIP CREATIVITY": "Creativity Lounge",
+    "VIP CULTURE": "Culture Lounge", "INVALID": "Invalid QR Code", "MAIN STUB": "Main Ticket Stub",
 }
-GATES = ("MAIN GATE", "GATE A", "GATE B", "VIP GATE")
+GATE_LABELS = {"GATE A": "Gate A", "GATE B": "Gate B", "CC GATE": "CC Gate"}
+GATES = tuple(GATE_LABELS)
 TABLE_PREFIX = "onrf2_production" if APP_MODE == "production" else "onrf2_test"
 TICKETS = TABLE_PREFIX + "_tickets"
 SCANS = TABLE_PREFIX + "_scans"
@@ -335,7 +336,7 @@ def health():
 
 @app.get("/")
 def index():
-    return render_template("index.html", app_mode=APP_MODE)
+    return render_template("index.html", app_mode=APP_MODE, gate_labels=GATE_LABELS)
 
 
 @app.post("/api/login")
@@ -438,7 +439,7 @@ def scan():
     if denied:
         return denied
     values = payload()
-    return verify_token(values.get("code", ""), values.get("gate", "MAIN GATE"))
+    return verify_token(values.get("code", ""), values.get("gate", GATES[0]))
 
 
 @app.get("/api/samples")
@@ -481,7 +482,7 @@ def simulate(number):
         return denied
     if not 1 <= number <= len(SAMPLES):
         return error("Sample not found.", 404)
-    return verify_token(SAMPLES[number - 1][1], payload().get("gate", "MAIN GATE"))
+    return verify_token(SAMPLES[number - 1][1], payload().get("gate", GATES[0]))
 
 
 @app.get("/api/collections/alphanumeric-20/samples")
@@ -491,7 +492,7 @@ def test20_samples():
         return denied
     return jsonify(ok=True, collection="alphanumeric-20", ticket_count=len(TEST20_TICKETS), samples=[
         {"i":sample["number"], "serial":sample["serial"], "kind":sample["kind"],
-         "state":sample["state"], "title":sample["title"],
+         "state":sample["state"], "title":sample["title"].removeprefix("VIP "),
          "qr":f"/api/collections/alphanumeric-20/sample/{sample['number']}",
          "scan":f"/api/collections/alphanumeric-20/sample/{sample['number']}/scan"}
         for sample in TEST20_SAMPLES
@@ -515,7 +516,7 @@ def test20_simulate(number):
         return denied
     if not 1 <= number <= len(TEST20_SAMPLES):
         return error("Sample not found.", 404)
-    return verify_token(TEST20_SAMPLES[number - 1]["token"], payload().get("gate", "MAIN GATE"))
+    return verify_token(TEST20_SAMPLES[number - 1]["token"], payload().get("gate", GATES[0]))
 
 
 @app.get("/api/summary")

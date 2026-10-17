@@ -104,7 +104,7 @@ def test_simultaneous_scans_have_exactly_one_winner(module):
         client, headers = login(module, 'staff' if index % 2 else 'admin')
         barrier.wait(timeout=20)
         response = client.post('/api/scan', headers=headers,
-                               json={'code':module.SAMPLES[1][1],'gate':module.GATES[index % 4]})
+                               json={'code':module.SAMPLES[1][1],'gate':module.GATES[index % len(module.GATES)]})
         assert response.status_code == 200
         return response.json
     with ThreadPoolExecutor(max_workers=count) as pool:

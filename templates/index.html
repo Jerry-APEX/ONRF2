@@ -161,10 +161,9 @@
             <div class="gate-selector">
               <label for="gate">CHECK-IN GATE</label>
               <select id="gate" aria-label="Check-in gate">
-                <option>MAIN GATE</option>
-                <option>GATE A</option>
-                <option>GATE B</option>
-                <option>VIP GATE</option>
+                {% for value, label in gate_labels.items() %}
+                <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
               </select>
             </div>
           </div>

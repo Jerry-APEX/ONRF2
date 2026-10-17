@@ -35,7 +35,7 @@ def test_twenty_sequential_scans_and_collection_metadata(module):
     assert len(catalog['samples']) == 20
     results = []
     for sample, item in zip(module.TEST20_SAMPLES, catalog['samples']):
-        assert item['title'] == sample['title'] and item['serial'] == sample['serial']
+        assert item['title'] == sample['title'].removeprefix('VIP ') and item['serial'] == sample['serial']
         assert 'token' not in item and 'code_hash' not in item
         qr = client.get(item['qr'])
         assert qr.status_code == 200 and qr.mimetype == 'image/png' and qr.data.startswith(b'\x89PNG')
@@ -84,7 +84,7 @@ def test_printed_and_original_formats_share_one_admission(module, collection):
     assert len(printed) == 39 and re.fullmatch(r'[A-Z2-7]{39}', printed)
     client, headers = login(module)
     first = client.post('/api/scan', headers=headers, json={'code':printed,'gate':'GATE B'}).json
-    repeated = client.post('/api/scan', headers=headers, json={'code':original,'gate':'VIP GATE'}).json
+    repeated = client.post('/api/scan', headers=headers, json={'code':original,'gate':'CC GATE'}).json
     assert first['result'] == 'ACCESS GRANTED' and repeated['result'] == 'ALREADY SCANNED'
     assert first['ticket'] == repeated['ticket']
     module.init_db()
@@ -101,7 +101,7 @@ def test_concurrent_formats_have_one_winner(module):
         client, headers = login(module, 'staff' if index % 2 else 'admin')
         barrier.wait(timeout=20)
         response = client.post('/api/scan', headers=headers,
-                               json={'code':original if index % 2 else printed,'gate':module.GATES[index % 4]})
+                               json={'code':original if index % 2 else printed,'gate':module.GATES[index % len(module.GATES)]})
         assert response.status_code == 200
         return response.json
     with ThreadPoolExecutor(max_workers=count) as pool:
@@ -123,7 +123,7 @@ def test_adding_collection_preserves_old_checkins_and_history(module):
     summary = client.get('/api/summary').json
     assert summary['stats']['total'] == 24
     assert len(summary['logs']) == 1 and summary['logs'][0]['serial'] == original['ticket']['serial']
-    repeat = client.post('/api/sample/1/scan', headers=headers, json={'gate':'VIP GATE'}).json
+    repeat = client.post('/api/sample/1/scan', headers=headers, json={'gate':'CC GATE'}).json
     assert repeat['result'] == 'ALREADY SCANNED' and repeat['ticket'] == original['ticket']
     client.post(COLLECTION + '/sample/1/scan', headers=headers, json={})
     assert client.post('/api/reset', headers=headers, json={}).status_code == 400

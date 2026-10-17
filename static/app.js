@@ -12,13 +12,16 @@
   const kindNames = {
     WHITE: "WHITE TICKET",
     MAIN: "MAIN TICKET",
-    "VIP CREATIVITY": "VIP CREATIVITY LOUNGE",
-    "VIP CULTURE": "VIP CULTURE LOUNGE",
-    VIP_CREATIVITY: "VIP CREATIVITY LOUNGE",
-    VIP_CULTURE: "VIP CULTURE LOUNGE",
+    "VIP CREATIVITY": "CREATIVITY LOUNGE",
+    "VIP CULTURE": "CULTURE LOUNGE",
+    VIP_CREATIVITY: "CREATIVITY LOUNGE",
+    VIP_CULTURE: "CULTURE LOUNGE",
     INVALID: "INVALID QR CODE",
     "MAIN STUB": "MAIN TICKET STUB",
   };
+  const gateNames = Object.fromEntries(
+    [...$("gate").options].map((option) => [option.value, option.textContent]),
+  );
   const initialStatuses = {
     unused: "INITIALLY VALID",
     used: "INITIALLY USED",
@@ -318,12 +321,12 @@
       if (granted)
         lines.push(
           ["Entry Time", time(ticket.first_time)],
-          ["Gate", ticket.first_gate],
+          ["Gate", gateNames[ticket.first_gate] || ticket.first_gate],
         );
       if (duplicate)
         lines.push(
           ["First Entry", time(ticket.first_time)],
-          ["First Gate", ticket.first_gate],
+          ["First Gate", gateNames[ticket.first_gate] || ticket.first_gate],
           ["Checked By", ticket.first_user],
         );
       details(lines);
@@ -496,7 +499,7 @@
           log.serial || "UNKNOWN",
           kindNames[log.kind] || "UNKNOWN",
           log.outcome,
-          log.gate,
+          gateNames[log.gate] || log.gate,
           log.operator,
         ];
         values.forEach((value, index) => {

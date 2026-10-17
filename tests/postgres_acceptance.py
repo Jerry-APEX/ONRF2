@@ -37,7 +37,7 @@ try:
         barrier.wait(timeout=20)
         token = portal.SAMPLES[1][1]
         response = browser.post('/api/scan', json={'code':print_token(token) if number % 2 else token,
-                                                 'gate':portal.GATES[number % 4]}, headers=headers)
+                                                 'gate':portal.GATES[number % len(portal.GATES)]}, headers=headers)
         assert response.status_code == 200
         return response.json
     with ThreadPoolExecutor(max_workers=count) as pool:
